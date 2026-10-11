@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Flanker Task</title>
+<title>Flanker and Card Sort</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
 <style>
 /* Flanker: same look as the Sentence Sense test for setup screens; dark, distraction-free screen for trials. */
@@ -68,9 +68,9 @@ th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute
 .bigchoice small{font-family:var(--read);font-weight:400;font-size:15px;opacity:.9}
 
 /* ---------- trial screen ---------- */
-#stage{position:fixed;inset:0;background:var(--stage);color:var(--stageInk);display:flex;flex-direction:column;z-index:10;
+.stageBox{position:fixed;inset:0;background:var(--stage);color:var(--stageInk);display:flex;flex-direction:column;z-index:10;
   padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px)}
-#stage[hidden]{display:none}
+.stageBox[hidden]{display:none}
 .stageTop{display:flex;justify-content:space-between;align-items:center;padding:12px 4px;font-family:var(--display);font-size:16px;color:#94a3b8}
 .stageTop .pill{background:#1f2937;border-radius:999px;padding:2px 12px}
 .stageMid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;min-height:0}
@@ -91,72 +91,187 @@ th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute
 .resp button[disabled]{opacity:.55}
 .stopBtn{background:none;border:1px solid #334155;color:#94a3b8;border-radius:8px;font-size:13px;padding:4px 10px;cursor:pointer}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- card sort board ---------- */
+.board{--gap:clamp(8px,2vw,18px);--cw:min(calc((100vw - 32px - 3*var(--gap))/4),calc((100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 210px)/2.75),220px);
+  display:flex;flex-direction:column;align-items:center;gap:var(--gap);margin:auto}
+.keys,.drops{display:grid;grid-template-columns:repeat(4,var(--cw));gap:var(--gap)}
+.drops{position:relative;height:calc(var(--cw)*1.33 + 52px)}
+.keyCard{width:var(--cw);height:calc(var(--cw)*1.33);border:none;padding:0;background:none;cursor:pointer;border-radius:14px;touch-action:manipulation}
+.keyCard svg,.pile svg,.drop svg{width:100%;height:100%;display:block}
+.keyCard:active svg rect.bg,.keyCard.pressed svg rect.bg{stroke:var(--sea);stroke-width:6}
+.keyCard[disabled]{cursor:default}
+.drop{position:relative;width:var(--cw);height:calc(var(--cw)*1.33)}
+.drop svg{height:calc(var(--cw)*1.33)}
+.mark{position:absolute;left:50%;top:calc(var(--cw)*1.33 + 6px);transform:translateX(-50%);font-size:clamp(20px,3.6vw,32px);font-weight:800;font-family:var(--display);white-space:nowrap;
+  background:rgba(17,24,39,.88);padding:2px 14px;border-radius:999px}
+.mark.ok{color:#4ade80}.mark.bad{color:#f87171}
+.pile{position:absolute;top:0;left:50%;transform:translateX(-50%);width:var(--cw);height:calc(var(--cw)*1.33)}
+.slow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:clamp(24px,4vw,36px);color:#fbbf24;font-weight:800;font-family:var(--display)}
+.prompt{min-height:28px;text-align:center;font-size:clamp(16px,2.6vw,21px);color:#cbd5e1;padding:0 8px 6px}
+.demoCards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:520px}
+.demoCards svg{width:100%;height:auto}
+.demoCards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:520px}
+.demoCards svg{width:100%;height:auto}
 </style>
 </head>
 <body>
 <div class="wrap" id="page">
   <header>
-    <div><span class="eyebrow">Sentence Sense</span><h1 id="title">Flanker Task</h1></div>
+    <div><span class="eyebrow">Sentence Sense</span><h1 id="title">Flanker &amp; Card Sort</h1></div>
     <span class="tag" id="modeTag" hidden></span>
   </header>
   <main id="screen"></main>
 </div>
 
-<!-- full-screen trial area -->
-<section id="stage" hidden>
-  <div class="stageTop"><span class="pill" id="stageInfo"></span><button class="stopBtn" id="stopBtn">Examiner: end early</button></div>
+<!-- Flanker trial screen -->
+<section id="fStage" class="stageBox" hidden>
+  <div class="stageTop"><span class="pill" id="fInfo"></span><button class="stopBtn" id="fStop">Examiner: end early</button></div>
   <div class="stageMid">
-    <div class="arrows" id="arrows" aria-live="off"></div>
+    <div class="arrows" id="arrows"></div>
     <div class="fix hide" id="fix"></div>
     <div class="msg" id="msg"></div>
   </div>
-  <div class="resp">
-    <button id="bL" aria-label="Left"></button>
-    <button id="bR" aria-label="Right"></button>
-  </div>
+  <div class="resp"><button id="bL" aria-label="Left"></button><button id="bR" aria-label="Right"></button></div>
+</section>
+
+<!-- Card Sort trial screen -->
+<section id="cStage" class="stageBox" hidden>
+  <div class="stageTop"><span class="pill" id="cInfo"></span><button class="stopBtn" id="cStop">Examiner: end early</button></div>
+  <div class="prompt" id="prompt"></div>
+  <div class="board"><div class="keys" id="keys"></div><div class="drops" id="drops"></div></div>
 </section>
 
 <script>
-/* ================= TASK SETTINGS (from the original PsyToolkit task) =================
-   4 stimuli, respond to the MIDDLE arrow. Left = A key / left button, Right = L key / right button.
-   Response window 2000 ms, 500 ms between trials. */
-const STIMULI=[
+/* =====================================================================
+   PART 1: FLANKER (from the PsyToolkit task)
+   4 stimuli, respond to the MIDDLE arrow. 2000 ms to respond, 500 ms between trials.
+   ===================================================================== */
+const FL_STIM=[
   {code:"LLLLL",dirs:"LLLLL",target:"left", cond:"congruent"},
   {code:"RRRRR",dirs:"RRRRR",target:"right",cond:"congruent"},
   {code:"RRLRR",dirs:"RRLRR",target:"left", cond:"incongruent"},
   {code:"LLRLL",dirs:"LLRLL",target:"right",cond:"incongruent"}
 ];
-const SETTINGS={
-  practiceTrials:8,      // 2 of each stimulus, with feedback
-  testTrials:48,         // 12 of each stimulus, balanced, no feedback
-  responseWindow:2000,   // ms
-  iti:500,               // ms blank between trials
-  fixation:500,          // ms fixation cross before the arrows
-  feedbackMs:900         // practice feedback display time
-};
+const FL={practiceTrials:8,testTrials:48,responseWindow:2000,iti:500,fixation:500,feedbackMs:900};
+
+/* =====================================================================
+   PART 2: CARD SORT (from the PsyToolkit WCST)
+   4 key cards, 60 cards in a fixed order, rule changes every 10 cards:
+   shape, number, color, shape, number, color. Feedback every card. 10 s limit.
+   Each card: [shape, number, color, rule, correct key card, perseverative key card]
+   ===================================================================== */
+const KEYS=[["circle",1,"red"],["triangle",2,"green"],["cross",3,"blue"],["star",4,"yellow"]];
+const CARDS=[
+  ["star",2,"yellow","shape",4,0],
+  ["star",1,"red","shape",4,0],
+  ["triangle",1,"yellow","shape",2,0],
+  ["star",1,"green","shape",4,0],
+  ["star",1,"blue","shape",4,0],
+  ["circle",1,"blue","shape",1,0],
+  ["star",2,"red","shape",4,0],
+  ["circle",2,"red","shape",1,0],
+  ["triangle",2,"yellow","shape",2,0],
+  ["circle",4,"green","shape",1,0],
+  ["triangle",4,"green","number",4,2],
+  ["triangle",3,"green","number",3,2],
+  ["cross",3,"green","number",3,3],
+  ["cross",4,"green","number",4,3],
+  ["triangle",1,"green","number",1,2],
+  ["cross",1,"blue","number",1,3],
+  ["circle",3,"red","number",3,1],
+  ["triangle",2,"blue","number",2,2],
+  ["circle",4,"yellow","number",4,1],
+  ["star",2,"blue","number",2,4],
+  ["star",4,"green","color",2,4],
+  ["star",4,"blue","color",3,4],
+  ["cross",3,"red","color",1,3],
+  ["circle",4,"red","color",1,4],
+  ["cross",1,"red","color",1,1],
+  ["triangle",3,"blue","color",3,3],
+  ["cross",2,"green","color",2,2],
+  ["triangle",1,"blue","color",3,1],
+  ["triangle",1,"red","color",1,1],
+  ["circle",4,"blue","color",3,4],
+  ["cross",4,"yellow","shape",3,4],
+  ["cross",3,"yellow","shape",3,4],
+  ["cross",2,"red","shape",3,1],
+  ["circle",3,"blue","shape",1,3],
+  ["triangle",4,"yellow","shape",2,4],
+  ["star",1,"yellow","shape",4,4],
+  ["triangle",4,"red","shape",2,1],
+  ["triangle",3,"red","shape",2,1],
+  ["cross",1,"yellow","shape",3,4],
+  ["circle",1,"green","shape",1,2],
+  ["cross",2,"yellow","number",2,3],
+  ["circle",2,"blue","number",2,1],
+  ["star",3,"green","number",3,4],
+  ["circle",3,"green","number",3,1],
+  ["cross",4,"blue","number",4,3],
+  ["star",4,"red","number",4,4],
+  ["cross",4,"red","number",4,3],
+  ["star",2,"green","number",2,4],
+  ["cross",2,"blue","number",2,3],
+  ["circle",2,"green","number",2,1],
+  ["circle",3,"yellow","color",4,3],
+  ["triangle",4,"blue","color",3,4],
+  ["triangle",2,"red","color",1,2],
+  ["star",3,"blue","color",3,3],
+  ["star",3,"yellow","color",4,3],
+  ["circle",1,"yellow","color",4,1],
+  ["triangle",3,"yellow","color",4,3],
+  ["star",3,"red","color",1,3],
+  ["circle",2,"yellow","color",4,2],
+  ["cross",1,"green","color",2,1]
+];
+
+const CS_PRACTICE=[["cross",3,"blue","all",3,0],["circle",1,"red","all",1,0],["star",4,"yellow","all",4,0]];
+const CS={timeLimit:10000,beforeCard:1000,afterChoice:1000};
+
+const TASKS={fl:{title:"Flanker",csv:"Flanker",part:1},cs:{title:"Card Sort",csv:"Card Sort",part:2}};
 
 /* ================= HELPERS ================= */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function on(id,f){const e=document.getElementById(id);if(e)e.onclick=f}
-const scr=$("#screen"),tag=$("#modeTag"),stage=$("#stage");
+const scr=$("#screen"),tag=$("#modeTag"),titleEl=$("#title"),fStage=$("#fStage"),cStage=$("#cStage");
+function localDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+function ageMonths(dob,date){const a=new Date(dob),b=new Date(date);if(isNaN(a)||isNaN(b))return"";let m=(b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth());if(b.getDate()<a.getDate())m--;return m}
+function hideStages(){fStage.hidden=true;cStage.hidden=true}
+
+/* ---------- drawings ---------- */
 function arrowSVG(dir,color="#fff"){
   const flip=dir==="L"?' transform="scale(-1,1) translate(-100,0)"':"";
   return `<svg viewBox="0 0 100 100" aria-hidden="true"><g${flip}><path d="M10 42 H60 V22 L92 50 L60 78 V58 H10 Z" fill="${color}"/></g></svg>`;
 }
-function localDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
-function ageMonths(dob,date){const a=new Date(dob),b=new Date(date);if(isNaN(a)||isNaN(b))return"";let m=(b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth());if(b.getDate()<a.getDate())m--;return m}
-function shuffleNoLongRuns(arr){ // shuffle, avoiding more than 3 identical stimuli in a row
-  for(let tries=0;tries<200;tries++){
-    const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
-    let ok=true;for(let i=3;i<a.length;i++)if(a[i]===a[i-1]&&a[i]===a[i-2]&&a[i]===a[i-3]){ok=false;break}
-    if(ok)return a;
-  }return arr.slice();
+const COLORS={red:"#E3262B",green:"#1E9E3E",blue:"#1F5FD6",yellow:"#F4C20D"};
+const POS={1:[[50,50]],2:[[32,30],[68,70]],3:[[25,24],[50,50],[75,76]],4:[[30,27],[70,27],[30,73],[70,73]]};
+function shapePath(shape,cx,cy,r){
+  if(shape==="circle")return `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
+  if(shape==="triangle")return `<polygon points="${cx},${cy-r} ${cx+r*1.05},${cy+r*.82} ${cx-r*1.05},${cy+r*.82}"/>`;
+  if(shape==="cross"){const t=r*.38;return `<path d="M${cx-t} ${cy-r}h${2*t}v${r-t}h${r-t}v${2*t}h-${r-t}v${r-t}h-${2*t}v-${r-t}h-${r-t}v-${2*t}h${r-t}z"/>`}
+  let p="";for(let i=0;i<10;i++){const a=Math.PI/5*i-Math.PI/2,rr=i%2?r*.45:r*1.05;p+=`${(cx+rr*Math.cos(a)).toFixed(1)},${(cy+rr*Math.sin(a)).toFixed(1)} `}
+  return `<polygon points="${p}"/>`;
 }
-function buildList(n){const per=n/4;return shuffleNoLongRuns([0,1,2,3].flatMap(k=>Array(per).fill(k)))}
+function cardSVG(shape,num,color){
+  const r=num===1?17:num===2?13:11.5;
+  const shapes=POS[num].map(([x,y])=>shapePath(shape,x,y*1.333,r)).join("");
+  return `<svg viewBox="0 0 100 133" role="img" aria-label="${num} ${color} ${shape}${num>1?"s":""}">
+    <rect class="bg" x="2" y="2" width="96" height="129" rx="10" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
+    <g fill="${COLORS[color]}" stroke="${color==="yellow"?"#A07800":"none"}" stroke-width="${color==="yellow"?1.2:0}">${shapes}</g></svg>`;
+}
+function cardName(c){return `${c[1]} ${c[2]} ${c[0]}${c[1]>1?(c[0]==="cross"?"es":"s"):""}`}
 
-/* ================= STORAGE (finished sessions kept on this iPad until saved) ================= */
-const KEY="flanker-sessions";
+/* ---------- sounds for card sort feedback ---------- */
+let AC=null;
+function tone(kind){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const t=AC.currentTime;
+  const notes=kind==="good"?[[660,0],[880,.12]]:[[220,0],[180,.15]];
+  notes.forEach(([f,dt])=>{const o=AC.createOscillator(),g=AC.createGain();o.type=kind==="good"?"sine":"square";o.frequency.value=f;
+    g.gain.setValueAtTime(.0001,t+dt);g.gain.exponentialRampToValueAtTime(kind==="good"?.25:.12,t+dt+.02);g.gain.exponentialRampToValueAtTime(.0001,t+dt+.18);
+    o.connect(g).connect(AC.destination);o.start(t+dt);o.stop(t+dt+.2)})}catch(e){}}
+
+/* ================= STORAGE ================= */
+const KEY="flanker-cardsort-sessions";
 function backups(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}
 function storeBackup(s){try{const b=backups().filter(x=>x.id!==s.id);b.push(s);localStorage.setItem(KEY,JSON.stringify(b));return backups().some(x=>x.id===s.id)}catch(e){return false}}
 function clearBackups(){try{localStorage.removeItem(KEY)}catch(e){}}
@@ -164,11 +279,12 @@ function getDevice(){try{return localStorage.getItem("ss-device")||""}catch(e){r
 function setDevice(v){try{localStorage.setItem("ss-device",v)}catch(e){}}
 
 /* ================= STATE ================= */
-let session=null, phase="setup", list=[], idx=0, trialLive=false, tOn=0, timer=null, stopArmed=false;
+let session=null, plan=[], step=0, task="fl", phase="setup";
+let list=[], idx=0, live=false, tOn=0, timer=null, stopArmed=false;
 
 /* ================= SETUP ================= */
 function setup(){
-  phase="setup";tag.hidden=true;stage.hidden=true;
+  phase="setup";tag.hidden=true;hideStages();titleEl.innerHTML="Flanker &amp; Card Sort";
   const today=localDate(), saved=backups();
   scr.innerHTML=`<section class="card">
     <h2>Student information</h2>
@@ -184,7 +300,13 @@ function setup(){
       </div>
       <span class="note" id="dobMsg"></span>
     </div>
-    <p class="note">${SETTINGS.practiceTrials} practice trials with feedback, then ${SETTINGS.testTrials} test trials. About 4 minutes.</p>
+    <div class="field"><label>Tasks to give</label>
+      <div class="checks" style="display:flex;flex-direction:column;gap:6px">
+        <label for="doFL" style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="doFL" checked style="width:22px;height:22px;accent-color:var(--navy)"> Part 1: Flanker (${FL.practiceTrials} practice + ${FL.testTrials} test)</label>
+        <label for="doCS" style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="doCS" checked style="width:22px;height:22px;accent-color:var(--navy)"> Part 2: Card Sort (${CS_PRACTICE.length} practice + ${CARDS.length} test)</label>
+      </div>
+    </div>
+    <p class="note">About 12 minutes for both. Turn the iPad sound on for Card Sort.</p>
     <div class="actions"><button class="btn primary" id="begin" disabled>Start</button></div>
     <div class="examiner">
       <label for="device">iPad number</label>
@@ -194,7 +316,7 @@ function setup(){
       <button class="btn small" id="eodBtn">End of the day</button>
     </div>
   </section>`;
-  const fn=$("#fname"),ln=$("#lname"),go=$("#begin"),dM=$("#dobM"),dD=$("#dobD"),dY=$("#dobY"),dMsg=$("#dobMsg");
+  const fn=$("#fname"),ln=$("#lname"),go=$("#begin"),dM=$("#dobM"),dD=$("#dobD"),dY=$("#dobY"),dMsg=$("#dobMsg"),c1=$("#doFL"),c2=$("#doCS");
   const readDob=()=>{
     const m=dM.value,d=dD.value,y=dY.value;if(!m||!d||y.length<4){dMsg.textContent="";return""}
     const mm=+m,dd=+d,yy=+y,dt=new Date(yy,mm-1,dd);
@@ -203,131 +325,73 @@ function setup(){
     if(age<3||age>14){dMsg.textContent="Check the year. This student would be "+Math.max(0,Math.floor(age))+" years old.";return""}
     dMsg.textContent="";return `${yy}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
   };
-  const ok=()=>go.disabled=!(fn.value.trim()&&ln.value.trim()&&readDob());
-  [fn,ln].forEach(e=>e.oninput=ok);
+  const ok=()=>go.disabled=!(fn.value.trim()&&ln.value.trim()&&readDob()&&(c1.checked||c2.checked));
+  [fn,ln].forEach(e=>e.oninput=ok);c1.onchange=ok;c2.onchange=ok;
   [[dM,dD],[dD,dY],[dY,null]].forEach(([el,nx])=>{el.oninput=()=>{el.value=el.value.replace(/\D/g,"");if(nx&&el.value.length===el.maxLength)nx.focus();ok()}});
   go.onclick=()=>{
+    tone("good"); // unlocks sound on iPad
+    plan=[];if(c1.checked)plan.push("fl");if(c2.checked)plan.push("cs");
     const f=fn.value.trim(),l=ln.value.trim();
     session={id:Date.now().toString(36),first:f,last:l,dob:readDob(),date:today,device:getDevice(),
-      start:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),status:"completed",practiceRounds:0,trials:[]};
-    practiceIntro();
+      start:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),status:{},practiceRounds:{fl:0,cs:0},trials:[]};
+    step=0;beginTask();
   };
   const dev=$("#device");dev.oninput=()=>setDevice(dev.value.trim());
   on("eodBtn",showEndOfDay);
   fn.focus();
 }
 
-/* ================= INSTRUCTIONS ================= */
-function demoHTML(){
-  const row=(dirs)=>`<div class="arrowsSm">${[...dirs].map((d,i)=>`<span class="${i===2?"mid":""}">${arrowSVG(d)}</span>`).join("")}</div>`;
-  return `<div class="demo">
-    <div class="demoBox">${row("RRRRR")}<small>Middle points right → tap <b>➡</b></small></div>
-    <div class="demoBox">${row("RRLRR")}<small>Middle points left → tap <b>⬅</b></small></div>
-  </div>`;
-}
+/* ================= FLOW ================= */
 function dirBlock(text){
   return `<p class="note">Read to the student, or tap the speaker to play it:</p>
   <div class="dirRow"><button class="spkBig" id="readScript" aria-label="Hear the directions">🔊</button><p class="script" id="scriptText">${text}</p></div>`;
 }
+function wireScript(){on("readScript",()=>speak($("#scriptText").textContent))}
+function beginTask(){
+  if(step>=plan.length){finish();return}
+  task=plan[step];titleEl.textContent=`Part ${TASKS[task].part}: ${TASKS[task].title}`;
+  practiceIntro();
+}
 function practiceIntro(){
-  phase="intro";tag.hidden=false;tag.textContent="Practice";tag.className="tag practice";
-  const name=esc(session.first);
+  phase="intro";hideStages();tag.hidden=false;tag.textContent="Practice";tag.className="tag practice";
+  const again=session.practiceRounds[task]>0, name=esc(session.first);
+  const text=task==="fl"
+    ?`Hi, ${name}! You will see five arrows in a row. Look only at the arrow in the middle. If the middle arrow points to the left, tap the left button. If it points to the right, tap the right button. Don't pay attention to the other arrows. Go as fast as you can, but try not to make mistakes.`
+    :`${step>0?"Now we will play a card game.":`Hi, ${name}! This is a card game.`} At the top there are four cards. At the bottom you will get a new card. Tap the card at the top that you think goes with the new card. After you tap, you will hear if you are right or wrong. Let's try a few.`;
   scr.innerHTML=`<section class="card">
-    <h2>${session.practiceRounds?"Let's practice again!":"Let's practice!"}</h2>
-    ${dirBlock(`Hi, ${name}! You will see five arrows in a row. Look only at the arrow in the middle. If the middle arrow points to the left, tap the left button. If it points to the right, tap the right button. Don't pay attention to the other arrows. Go as fast as you can, but try not to make mistakes.`)}
-    ${demoHTML()}
+    <h2>${again?"Let's practice again!":"Let's practice!"}</h2>
+    ${dirBlock(text)}
+    ${task==="fl"?flDemo():csDemo()}
     <div class="actions"><button class="btn go" id="go">Start practice</button></div>
   </section>`;
-  on("readScript",()=>speak($("#scriptText").textContent));
-  on("go",()=>{session.practiceRounds++;runBlock("practice")});
+  wireScript();
+  on("go",()=>{session.practiceRounds[task]++;runBlock("practice")});
 }
 function testIntro(){
-  phase="intro";tag.hidden=false;tag.textContent="Test";tag.className="tag";
+  phase="intro";hideStages();tag.hidden=false;tag.textContent="Test";tag.className="tag";
+  const text=task==="fl"
+    ?`Now let's do the real game. This time I won't tell you if you are right or wrong. Remember, look only at the middle arrow. Go as fast as you can without making mistakes. Ready?`
+    :`Now let's play the real game. I can't tell you how to match the cards, but after each card you will hear if you are right or wrong. Use that to figure out the way to match. Sometimes the way to match will change. When that happens, find the new way to match. Try to be right as many times as you can.`;
   scr.innerHTML=`<section class="card">
-    <h2>Great practicing!</h2>
-    ${dirBlock(`Now let's do the real game. This time I won't tell you if you are right or wrong. Remember, look only at the middle arrow. Go as fast as you can without making mistakes. Ready?`)}
-    ${demoHTML()}
+    <h2>${task==="fl"?"Great practicing!":"Now the real game"}</h2>
+    ${dirBlock(text)}
+    ${task==="fl"?flDemo():csDemo()}
     <div class="actions"><button class="btn primary" id="go">Start test</button></div>
   </section>`;
-  on("readScript",()=>speak($("#scriptText").textContent));
+  wireScript();
   on("go",()=>runBlock("test"));
 }
-
-/* ================= TRIALS ================= */
-$("#bL").innerHTML=arrowSVG("L");$("#bR").innerHTML=arrowSVG("R");
-function runBlock(which){
-  phase=which;idx=0;stopArmed=false;$("#stopBtn").textContent="Examiner: end early";
-  list=buildList(which==="practice"?SETTINGS.practiceTrials:SETTINGS.testTrials);
-  stage.hidden=false;$("#stopBtn").hidden=which==="practice";
-  setButtons(false);$("#arrows").innerHTML="";$("#msg").textContent="";$("#fix").classList.add("hide");
-  setTimeout(nextTrial,800);
-}
-function setButtons(enabled){$("#bL").disabled=!enabled;$("#bR").disabled=!enabled}
-function nextTrial(){
-  if(phase!=="practice"&&phase!=="test")return;
-  if(idx>=list.length){endBlock();return}
-  $("#stageInfo").textContent=(phase==="practice"?"Practice ":"Trial ")+(idx+1)+" of "+list.length;
-  const fix=$("#fix");fix.classList.remove("hide","red");$("#arrows").innerHTML="";$("#msg").textContent="";$("#msg").className="msg";
-  setTimeout(()=>{
-    if(phase!=="practice"&&phase!=="test")return;
-    const s=STIMULI[list[idx]];
-    $("#arrows").innerHTML=[...s.dirs].map(d=>arrowSVG(d)).join("");
-    // timestamp the first frame where the arrows are actually painted
-    requestAnimationFrame(()=>requestAnimationFrame(t=>{
-      tOn=performance.now();trialLive=true;setButtons(true);
-      timer=setTimeout(()=>respond(null),SETTINGS.responseWindow);
-    }));
-  },SETTINGS.fixation);
-}
-function respond(dir){
-  if(!trialLive)return;
-  const rt=dir?Math.round(performance.now()-tOn):"";
-  trialLive=false;clearTimeout(timer);setButtons(false);
-  const s=STIMULI[list[idx]];
-  const correct=dir===s.target?1:0;
-  session.trials.push({phase,trial:idx+1,stimulus:s.code,condition:s.cond,target:s.target,response:dir||"none",
-    correct,rt,timeout:dir?0:1,round:phase==="practice"?session.practiceRounds:""});
-  $("#arrows").innerHTML="";
-  idx++;
-  if(phase==="practice"){
-    const m=$("#msg"),fix=$("#fix");
-    if(correct){m.textContent="✓ Correct!";m.className="msg ok"}
-    else if(!dir){m.textContent="Too slow! Tap faster next time.";m.className="msg bad";fix.classList.add("red")}
-    else{m.textContent="Oops! Look at the middle arrow.";m.className="msg bad";fix.classList.add("red")}
-    setTimeout(()=>{fix.classList.remove("red");setTimeout(nextTrial,SETTINGS.iti)},SETTINGS.feedbackMs);
-  }else{
-    $("#fix").classList.add("hide");
-    setTimeout(nextTrial,SETTINGS.iti);
-  }
-}
-$("#bL").addEventListener("pointerdown",e=>{e.preventDefault();respond("left")});
-$("#bR").addEventListener("pointerdown",e=>{e.preventDefault();respond("right")});
-document.addEventListener("keydown",e=>{
-  if(stage.hidden)return;
-  const k=e.key.toLowerCase();
-  if(k==="a"||k==="arrowleft"){e.preventDefault();respond("left")}
-  else if(k==="l"||k==="arrowright"){e.preventDefault();respond("right")}
-});
-$("#stopBtn").onclick=()=>{
-  if(!stopArmed){stopArmed=true;$("#stopBtn").textContent="Tap again to end and save";return}
-  clearTimeout(timer);trialLive=false;session.status=`stopped at trial ${idx+1}`;phase="done";stage.hidden=true;finish();
-};
-function endBlock(){
-  stage.hidden=true;
-  if(phase==="practice"){practiceResult();return}
-  phase="done";finish();
-}
-
-/* ================= AFTER PRACTICE ================= */
 function practiceResult(){
-  phase="intro";
-  const r=session.trials.filter(t=>t.phase==="practice"&&t.round===session.practiceRounds);
+  phase="intro";hideStages();
+  const r=session.trials.filter(t=>t.task===task&&t.phase==="practice"&&t.round===session.practiceRounds[task]);
   const n=r.filter(t=>t.correct).length;
-  const passed=n>=6;
+  const passed=task==="fl"?n>=6:n===r.length;
   scr.innerHTML=`<section class="card">
     <h2>Practice done</h2>
     <p class="feedback ${passed?"good":"try"}">${n} of ${r.length} correct${passed?". Ready for the test.":". Consider practicing again before the test."}</p>
-    <div class="examiner" style="border-top:none;padding-top:0">Examiner: if the student still seems unsure which arrow to look at, practice again.</div>
+    <div class="examiner" style="border-top:none;padding-top:0">${task==="fl"
+      ?"Examiner: if the student still seems unsure which arrow to look at, practice again."
+      :"Examiner: practice cards match a top card exactly, so they only check that the student knows how to tap a card and listen to the feedback."}</div>
     <div class="actions">
       <button class="btn ${passed?"primary":""}" id="toTest">Go to the test</button>
       <button class="btn ${passed?"":"go"}" id="again">Practice again</button>
@@ -335,33 +399,175 @@ function practiceResult(){
   </section>`;
   on("toTest",testIntro);on("again",practiceIntro);
 }
-
-/* ================= RESULTS ================= */
-function summarize(s){
-  const t=s.trials.filter(x=>x.phase==="test");
-  const by=c=>{const all=t.filter(x=>x.condition===c),ok=all.filter(x=>x.correct&&x.rt!=="");
-    const mean=ok.length?Math.round(ok.reduce((a,x)=>a+x.rt,0)/ok.length):"";
-    return{n:all.length,correct:all.filter(x=>x.correct).length,acc:all.length?Math.round(all.filter(x=>x.correct).length/all.length*100):"",rt:mean}};
-  const con=by("congruent"),inc=by("incongruent");
-  return{con,inc,effect:(con.rt!==""&&inc.rt!=="")?inc.rt-con.rt:"",total:t.filter(x=>x.correct).length,n:t.length,timeouts:t.filter(x=>x.timeout).length};
+function endTask(how){
+  hideStages();session.status[task]=how;step++;
+  if(step<plan.length){
+    phase="break";tag.hidden=true;
+    scr.innerHTML=`<section class="card"><h2>Great job! Time for a short break.</h2>
+      ${dirBlock("You finished the first game! Next, we are going to play a card game.")}
+      <div class="actions"><button class="btn primary" id="go">Go to Part 2</button></div></section>`;
+    wireScript();on("go",beginTask);
+  }else finish();
 }
+function runBlock(which){
+  phase=which;idx=0;stopArmed=false;
+  if(task==="fl")flRun(which);else csRun(which);
+}
+function stopTask(){
+  clearTimeout(timer);live=false;phase="stopped";
+  endTask(`stopped at ${task==="fl"?"trial":"card"} ${idx+1}`);
+}
+function wireStop(btn){
+  btn.textContent="Examiner: end early";btn.hidden=phase==="practice";
+  btn.onclick=()=>{if(!stopArmed){stopArmed=true;btn.textContent="Tap again to end this part";return}stopTask()};
+}
+
+/* ================= FLANKER TRIALS ================= */
+function flDemo(){
+  const row=dirs=>`<div class="arrowsSm">${[...dirs].map((d,i)=>`<span class="${i===2?"mid":""}">${arrowSVG(d)}</span>`).join("")}</div>`;
+  return `<div class="demo">
+    <div class="demoBox">${row("RRRRR")}<small>Middle points right → tap <b>➡</b></small></div>
+    <div class="demoBox">${row("RRLRR")}<small>Middle points left → tap <b>⬅</b></small></div></div>`;
+}
+function shuffleNoLongRuns(arr){
+  for(let tries=0;tries<200;tries++){
+    const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+    let ok=true;for(let i=3;i<a.length;i++)if(a[i]===a[i-1]&&a[i]===a[i-2]&&a[i]===a[i-3]){ok=false;break}
+    if(ok)return a;
+  }return arr.slice();
+}
+$("#bL").innerHTML=arrowSVG("L");$("#bR").innerHTML=arrowSVG("R");
+function flButtons(en){$("#bL").disabled=!en;$("#bR").disabled=!en}
+function flRun(which){
+  const n=which==="practice"?FL.practiceTrials:FL.testTrials;
+  list=shuffleNoLongRuns([0,1,2,3].flatMap(k=>Array(n/4).fill(k)));
+  hideStages();fStage.hidden=false;wireStop($("#fStop"));
+  flButtons(false);$("#arrows").innerHTML="";$("#msg").textContent="";$("#fix").classList.add("hide");
+  setTimeout(flNext,800);
+}
+function flNext(){
+  if(task!=="fl"||(phase!=="practice"&&phase!=="test"))return;
+  if(idx>=list.length){flEnd();return}
+  $("#fInfo").textContent=(phase==="practice"?"Practice ":"Trial ")+(idx+1)+" of "+list.length;
+  const fix=$("#fix");fix.classList.remove("hide","red");$("#arrows").innerHTML="";$("#msg").textContent="";$("#msg").className="msg";
+  setTimeout(()=>{
+    if(task!=="fl"||(phase!=="practice"&&phase!=="test"))return;
+    const s=FL_STIM[list[idx]];
+    $("#arrows").innerHTML=[...s.dirs].map(d=>arrowSVG(d)).join("");
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      tOn=performance.now();live=true;flButtons(true);
+      timer=setTimeout(()=>flRespond(null),FL.responseWindow);
+    }));
+  },FL.fixation);
+}
+function flRespond(dir){
+  if(!live||task!=="fl")return;
+  const rt=dir?Math.round(performance.now()-tOn):"";
+  live=false;clearTimeout(timer);flButtons(false);
+  const s=FL_STIM[list[idx]], correct=dir===s.target?1:0;
+  session.trials.push({task:"fl",phase,round:phase==="practice"?session.practiceRounds.fl:"",trial:idx+1,
+    stimulus:s.code,condition:s.cond,target:s.target,response:dir||"none",correct,rt,timeout:dir?0:1});
+  $("#arrows").innerHTML="";idx++;
+  if(phase==="practice"){
+    const m=$("#msg"),fix=$("#fix");
+    if(correct){m.textContent="✓ Correct!";m.className="msg ok"}
+    else if(!dir){m.textContent="Too slow! Tap faster next time.";m.className="msg bad";fix.classList.add("red")}
+    else{m.textContent="Oops! Look at the middle arrow.";m.className="msg bad";fix.classList.add("red")}
+    setTimeout(()=>{fix.classList.remove("red");setTimeout(flNext,FL.iti)},FL.feedbackMs);
+  }else{$("#fix").classList.add("hide");setTimeout(flNext,FL.iti)}
+}
+$("#bL").addEventListener("pointerdown",e=>{e.preventDefault();flRespond("left")});
+$("#bR").addEventListener("pointerdown",e=>{e.preventDefault();flRespond("right")});
+document.addEventListener("keydown",e=>{
+  if(fStage.hidden)return;const k=e.key.toLowerCase();
+  if(k==="a"||k==="arrowleft"){e.preventDefault();flRespond("left")}
+  else if(k==="l"||k==="arrowright"){e.preventDefault();flRespond("right")}
+});
+function flEnd(){hideStages();if(phase==="practice")practiceResult();else endTask("completed")}
+
+/* ================= CARD SORT TRIALS ================= */
+function csDemo(){return `<div class="demoCards">${KEYS.map(k=>cardSVG(...k)).join("")}</div>`}
+function csKeys(en){KEYS.forEach((_,i)=>$("#k"+(i+1)).disabled=!en)}
+function csRun(which){
+  list=which==="practice"?CS_PRACTICE:CARDS;
+  hideStages();cStage.hidden=false;wireStop($("#cStop"));
+  $("#keys").innerHTML=KEYS.map((k,i)=>`<button class="keyCard" id="k${i+1}" aria-label="${cardName(k)}" disabled>${cardSVG(...k)}</button>`).join("");
+  $("#drops").innerHTML=KEYS.map((_,i)=>`<div class="drop" id="d${i+1}"></div>`).join("")+`<div class="pile" id="pile"></div>`;
+  KEYS.forEach((_,i)=>$("#k"+(i+1)).addEventListener("pointerdown",e=>{e.preventDefault();csChoose(i+1)}));
+  $("#prompt").textContent="";
+  setTimeout(csNext,600);
+}
+function csNext(){
+  if(task!=="cs"||(phase!=="practice"&&phase!=="test"))return;
+  if(idx>=list.length){csEnd();return}
+  $("#cInfo").textContent=(phase==="practice"?"Practice ":"Card ")+(idx+1)+" of "+list.length;
+  for(let i=1;i<=4;i++)$("#d"+i).innerHTML="";$("#pile").innerHTML="";$("#prompt").textContent="";
+  setTimeout(()=>{
+    if(task!=="cs"||(phase!=="practice"&&phase!=="test"))return;
+    const c=list[idx];
+    $("#pile").innerHTML=cardSVG(c[0],c[1],c[2]);
+    $("#prompt").textContent=phase==="practice"?"Tap the card at the top that goes with this card.":"";
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      tOn=performance.now();live=true;csKeys(true);
+      timer=setTimeout(()=>csChoose(0),CS.timeLimit);
+    }));
+  },idx===0?300:CS.beforeCard);
+}
+function csChoose(k){
+  if(!live||task!=="cs")return;
+  live=false;clearTimeout(timer);csKeys(false);
+  const c=list[idx], rt=k?Math.round(performance.now()-tOn):"";
+  const correct=k===c[4]?1:0, persev=(!correct&&k&&c[5]&&k===c[5])?1:0, nonpersev=(!correct&&!persev)?1:0;
+  session.trials.push({task:"cs",phase,round:phase==="practice"?session.practiceRounds.cs:"",trial:idx+1,
+    set:phase==="test"?Math.floor(idx/10)+1:"",trialInSet:phase==="test"?idx%10+1:"",rule:c[3],card:cardName(c),
+    correctChoice:c[4],persevChoice:c[5]||"",choice:k||"none",correct,error:correct?0:1,persev,nonpersev,rt,timeout:k?0:1});
+  $("#pile").innerHTML="";
+  if(k)$("#d"+k).innerHTML=`${cardSVG(c[0],c[1],c[2])}<div class="mark ${correct?"ok":"bad"}">${correct?"✓ Correct":"✗ Wrong"}</div>`;
+  else $("#pile").innerHTML=`<span class="slow">Too slow!</span>`;
+  tone(correct?"good":"bad");
+  idx++;setTimeout(csNext,CS.afterChoice);
+}
+function csEnd(){hideStages();if(phase==="practice")practiceResult();else endTask("completed")}
+
+/* ================= SCORING ================= */
+function flSummary(s){
+  const t=s.trials.filter(x=>x.task==="fl"&&x.phase==="test");
+  const by=c=>{const all=t.filter(x=>x.condition===c),ok=all.filter(x=>x.correct&&x.rt!=="");
+    return{n:all.length,correct:all.filter(x=>x.correct).length,acc:all.length?Math.round(all.filter(x=>x.correct).length/all.length*100):"",
+      rt:ok.length?Math.round(ok.reduce((a,x)=>a+x.rt,0)/ok.length):""}};
+  const con=by("congruent"),inc=by("incongruent");
+  return{n:t.length,con,inc,effect:(con.rt!==""&&inc.rt!=="")?inc.rt-con.rt:"",total:t.filter(x=>x.correct).length,timeouts:t.filter(x=>x.timeout).length};
+}
+function csSummary(s){
+  const t=s.trials.filter(x=>x.task==="cs"&&x.phase==="test"),n=t.length,sum=f=>t.reduce((a,x)=>a+(x[f]||0),0),pct=v=>n?Math.round(v/n*1000)/10:"";
+  const errors=sum("error"),pers=sum("persev"),nonpers=sum("nonpersev");
+  return{n,correct:sum("correct"),errors,pers,nonpers,pctErrors:pct(errors),pctPers:pct(pers),pctNonPers:pct(nonpers),timeouts:sum("timeout"),
+    sets:[1,2,3,4,5,6].map(k=>{const a=t.filter(x=>x.set===k);return{n:a.length,correct:a.filter(x=>x.correct).length,rule:a[0]?a[0].rule:""}})};
+}
+
+/* ================= FINISH ================= */
 function finish(){
-  tag.hidden=true;
-  const kept=storeBackup(session), S=summarize(session);
-  const fname=`Flanker_${(session.last+"_"+session.first).replace(/[^A-Za-z0-9]+/g,"_")}_${session.date}.csv`;
+  phase="done";hideStages();tag.hidden=true;titleEl.innerHTML="Flanker &amp; Card Sort";
+  const kept=storeBackup(session), F=flSummary(session), C=csSummary(session);
+  const fname=`FlankerCardSort_${(session.last+"_"+session.first).replace(/[^A-Za-z0-9]+/g,"_")}_${session.date}.csv`;
+  let rows="";
+  if(plan.includes("fl"))rows+=`<tr><th colspan="3">Part 1: Flanker · ${esc(session.status.fl||"")}</th></tr>
+    <tr><td>Congruent</td><td>${F.con.correct} / ${F.con.n} (${F.con.acc}%)</td><td>${F.con.rt} ms</td></tr>
+    <tr><td>Incongruent</td><td>${F.inc.correct} / ${F.inc.n} (${F.inc.acc}%)</td><td>${F.inc.rt} ms</td></tr>
+    <tr><td><strong>Flanker effect</strong></td><td><strong>${F.total} / ${F.n} total</strong></td><td><strong>${F.effect} ms</strong></td></tr>
+    <tr><td>Timeouts</td><td>${F.timeouts}</td><td></td></tr>`;
+  if(plan.includes("cs"))rows+=`<tr><th colspan="3">Part 2: Card Sort · ${esc(session.status.cs||"")}</th></tr>
+    <tr><td>Correct</td><td>${C.correct} / ${C.n}</td><td>${C.n?Math.round(C.correct/C.n*1000)/10:""}%</td></tr>
+    <tr><td><strong>Total errors</strong></td><td><strong>${C.errors}</strong></td><td><strong>${C.pctErrors}%</strong></td></tr>
+    <tr><td><strong>Perseverative errors</strong></td><td><strong>${C.pers}</strong></td><td><strong>${C.pctPers}%</strong></td></tr>
+    <tr><td>Non-perseverative errors</td><td>${C.nonpers}</td><td>${C.pctNonPers}%</td></tr>
+    <tr><td>Correct by set</td><td colspan="2">${C.sets.map((x,i)=>x.n?`${i+1} (${x.rule}) ${x.correct}/${x.n}`:"").filter(Boolean).join(" · ")}</td></tr>`;
   scr.innerHTML=`<section class="card">
     <h2 class="center">All done. Great job, ${esc(session.first)}!</h2>
     <div class="examiner" style="flex-direction:column;align-items:stretch">
       <strong style="color:var(--ink)">Examiner summary</strong>
-      <span>${esc(session.first+" "+session.last)} · DOB ${session.dob} · Age ${ageMonths(session.dob,session.date)} months · ${session.date} · ${esc(session.status)}</span>
-      <div class="tablewrap"><table>
-        <thead><tr><th>Condition</th><th>Accuracy</th><th>Mean RT (correct)</th></tr></thead>
-        <tbody>
-          <tr><td>Congruent</td><td>${S.con.correct} / ${S.con.n} (${S.con.acc}%)</td><td>${S.con.rt} ms</td></tr>
-          <tr><td>Incongruent</td><td>${S.inc.correct} / ${S.inc.n} (${S.inc.acc}%)</td><td>${S.inc.rt} ms</td></tr>
-          <tr><td><strong>Flanker effect</strong></td><td><strong>${S.total} / ${S.n} total</strong></td><td><strong>${S.effect} ms</strong></td></tr>
-        </tbody></table></div>
-      <span>Timeouts (no answer in 2 seconds): ${S.timeouts}</span>
+      <span>${esc(session.first+" "+session.last)} · DOB ${session.dob} · Age ${ageMonths(session.dob,session.date)} months · ${session.date}</span>
+      <div class="tablewrap"><table><tbody>${rows}</tbody></table></div>
       ${kept?`<p class="feedback good">✓ Results saved on this iPad.</p>`
             :`<p class="feedback try">✗ Results were NOT saved on this iPad (Private Browsing or storage is off). Tap Save this student now.</p>`}
       <p class="feedback" id="saveMsg"></p>
@@ -382,12 +588,12 @@ function finish(){
 
 /* ================= END OF THE DAY ================= */
 function showEndOfDay(){
-  phase="eod";tag.hidden=false;tag.textContent="Examiner";tag.className="tag";stage.hidden=true;
+  phase="eod";hideStages();tag.hidden=false;tag.textContent="Examiner";tag.className="tag";titleEl.textContent="End of the Day";
   const saved=backups(), dates=[...new Set(saved.map(s=>s.date))].sort();
   scr.innerHTML=`<section class="card">
     <h2>Save today's results</h2>
     <p class="note"><strong>${saved.length}</strong> student${saved.length===1?"":"s"} saved on this iPad${dates.length?` (${dates[0]}${dates.length>1?" to "+dates[dates.length-1]:""})`:""}${getDevice()?` · iPad ${esc(getDevice())}`:""}.</p>
-    ${saved.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Date</th><th>Status</th></tr></thead><tbody>${saved.map(s=>`<tr><td>${esc(s.first+" "+s.last)}</td><td>${esc(s.date)}</td><td>${esc(s.status)}</td></tr>`).join("")}</tbody></table></div>`:""}
+    ${saved.length?`<div class="tablewrap"><table><thead><tr><th>Student</th><th>Date</th><th>Flanker</th><th>Card Sort</th></tr></thead><tbody>${saved.map(s=>`<tr><td>${esc(s.first+" "+s.last)}</td><td>${esc(s.date)}</td><td>${esc((s.status||{}).fl||"not given")}</td><td>${esc((s.status||{}).cs||"not given")}</td></tr>`).join("")}</tbody></table></div>`:""}
     <ol class="note" style="margin:0;padding-left:20px;font-size:16px">
       <li>Tap <strong>Save all results</strong>, then choose OneDrive (or Save to Files).</li>
       <li>Check that the file is in OneDrive.</li>
@@ -401,7 +607,7 @@ function showEndOfDay(){
   <div class="actions" style="margin-top:14px"><button class="btn" id="back">← Back to start</button></div>`;
   on("dlAll",()=>{
     const dev=getDevice().replace(/[^A-Za-z0-9]+/g,""),n=backups().length;
-    saveWithStatus(toCSV(backups()),`Flanker_${dev?"iPad"+dev+"_":""}${localDate()}.csv`,`all ${n} student${n===1?"":"s"}`,"eodMsg")
+    saveWithStatus(toCSV(backups()),`FlankerCardSort_${dev?"iPad"+dev+"_":""}${localDate()}.csv`,`all ${n} student${n===1?"":"s"}`,"eodMsg")
       .then(r=>{if(r==="shared"||r==="downloaded"){$("#afterSave").hidden=false;$("#clrMsg").hidden=false}});
   });
   let armed=false;
@@ -409,17 +615,24 @@ function showEndOfDay(){
   on("back",setup);
 }
 
-/* ================= CSV ================= */
+/* ================= CSV (one row per trial; task column tells Flanker and Card Sort apart) ================= */
 function toCSV(sessions){
-  const head=["first_name","last_name","dob","age_months","test_date","start_time","ipad","session_status",
-    "phase","practice_round","trial","stimulus","condition","target","response","correct","rt_ms","timeout",
-    "acc_congruent_pct","acc_incongruent_pct","rt_congruent_ms","rt_incongruent_ms","flanker_effect_ms"];
+  const head=["first_name","last_name","dob","age_months","test_date","start_time","ipad","task","task_status","phase","practice_round","trial",
+    "fl_stimulus","fl_condition","fl_target","fl_response",
+    "cs_set","cs_trial_in_set","cs_rule","cs_card","cs_correct_choice","cs_perseverative_choice","cs_choice",
+    "correct","rt_ms","timeout","cs_error","cs_perseverative_error","cs_nonperseverative_error",
+    "fl_acc_congruent_pct","fl_acc_incongruent_pct","fl_rt_congruent_ms","fl_rt_incongruent_ms","fl_flanker_effect_ms",
+    "cs_total_correct","cs_total_errors","cs_pct_errors","cs_persev_errors","cs_pct_persev_errors","cs_nonpersev_errors","cs_pct_nonpersev_errors"];
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const out=[head.join(",")];
-  sessions.forEach(s=>{const S=summarize(s);
-    s.trials.forEach(t=>out.push([s.first,s.last,s.dob,ageMonths(s.dob,s.date),s.date,s.start,s.device||"",s.status,
-      t.phase,t.round,t.trial,t.stimulus,t.condition,t.target,t.response,t.correct,t.rt,t.timeout,
-      S.con.acc,S.inc.acc,S.con.rt,S.inc.rt,S.effect].map(q).join(",")))});
+  sessions.forEach(s=>{const F=flSummary(s),C=csSummary(s),st=s.status||{};
+    const fSum=F.n?[F.con.acc,F.inc.acc,F.con.rt,F.inc.rt,F.effect]:["","","","",""];
+    const cSum=C.n?[C.correct,C.errors,C.pctErrors,C.pers,C.pctPers,C.nonpers,C.pctNonPers]:["","","","","","",""];
+    s.trials.forEach(t=>{const fl=t.task==="fl";
+      out.push([s.first,s.last,s.dob,ageMonths(s.dob,s.date),s.date,s.start,s.device||"",TASKS[t.task].csv,st[t.task]||"",t.phase,t.round,t.trial,
+        fl?t.stimulus:"",fl?t.condition:"",fl?t.target:"",fl?t.response:"",
+        fl?"":t.set,fl?"":t.trialInSet,fl?"":t.rule,fl?"":t.card,fl?"":t.correctChoice,fl?"":t.persevChoice,fl?"":t.choice,
+        t.correct,t.rt,t.timeout,fl?"":t.error,fl?"":t.persev,fl?"":t.nonpersev,...fSum,...cSum].map(q).join(","))})});
   return "﻿"+out.join("\r\n");
 }
 async function download(text,name){
@@ -440,7 +653,7 @@ async function saveWithStatus(text,name,what,msgId){
   return r;
 }
 
-/* ================= VOICE (most natural voice on the device) ================= */
+/* ================= VOICE ================= */
 const PREFERRED=["Ava","Samantha","Allison","Susan","Zoe","Nicky","Evan","Tom"];let VOICE=null;
 function scoreVoice(v){if(!/^en[-_]?/i.test(v.lang))return -1;let s=0;const n=v.name;
   if(/premium/i.test(n))s+=100;if(/enhanced/i.test(n))s+=80;if(/natural|neural|online/i.test(n))s+=70;if(/google us english/i.test(n))s+=60;
