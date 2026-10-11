@@ -93,6 +93,19 @@ th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
 /* ---------- card sort board ---------- */
+.slowNote{color:#fbbf24;font-weight:800;font-family:var(--display);font-size:clamp(20px,3.4vw,28px)}
+.rules{display:flex;flex-direction:column;gap:10px}
+.rulesHead{margin:0;font-weight:700;font-size:18px}
+.ruleGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ruleBox{background:var(--bg);border:2px solid var(--line);border-radius:16px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.ruleBox b{font-family:var(--display);font-size:20px;color:var(--navy)}
+.ruleBox small{font-size:15px;color:var(--muted)}
+.pair{display:flex;align-items:center;gap:6px}
+.pair svg{width:clamp(52px,9vw,84px);height:auto}
+.pair span{font-size:26px;font-weight:800;color:var(--navy)}
+.rules.compact .pair svg{width:clamp(40px,6vw,60px)}
+@media (max-width:520px){.ruleGrid{grid-template-columns:1fr}}
+
 .board{--gap:clamp(8px,2vw,18px);--cw:min(calc((100vw - 32px - 3*var(--gap))/4),calc((100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 210px)/2.75),220px);
   display:flex;flex-direction:column;align-items:center;gap:var(--gap);margin:auto}
 .keys,.drops{display:grid;grid-template-columns:repeat(4,var(--cw));gap:var(--gap)}
@@ -226,7 +239,7 @@ const CARDS=[
 ];
 
 const CS_PRACTICE=[["cross",3,"blue","all",3,0],["circle",1,"red","all",1,0],["star",4,"yellow","all",4,0]];
-const CS={timeLimit:10000,beforeCard:1000,afterChoice:1000};
+const CS={slowAfter:10000,beforeCard:1000,afterChoice:1000}; // after 10 s a "Too slow!" reminder appears; the student can still answer (no time limit)
 
 const TASKS={fl:{title:"Flanker",csv:"Flanker",part:1},cs:{title:"Card Sort",csv:"Card Sort",part:2}};
 
@@ -244,12 +257,15 @@ function arrowSVG(dir,color="#fff"){
   const flip=dir==="L"?' transform="scale(-1,1) translate(-100,0)"':"";
   return `<svg viewBox="0 0 100 100" aria-hidden="true"><g${flip}><path d="M10 42 H60 V22 L92 50 L60 78 V58 H10 Z" fill="${color}"/></g></svg>`;
 }
-const COLORS={red:"#E3262B",green:"#1E9E3E",blue:"#1F5FD6",yellow:"#F4C20D"};
+const COLORS={red:"#E3262B",green:"#1E9E3E",blue:"#1F5FD6",yellow:"#F4C20D",purple:"#7C3AED",orange:"#EA7A0C"};
 const POS={1:[[50,50]],2:[[32,30],[68,70]],3:[[25,24],[50,50],[75,76]],4:[[30,27],[70,27],[30,73],[70,73]]};
 function shapePath(shape,cx,cy,r){
   if(shape==="circle")return `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
   if(shape==="triangle")return `<polygon points="${cx},${cy-r} ${cx+r*1.05},${cy+r*.82} ${cx-r*1.05},${cy+r*.82}"/>`;
   if(shape==="cross"){const t=r*.38;return `<path d="M${cx-t} ${cy-r}h${2*t}v${r-t}h${r-t}v${2*t}h-${r-t}v${r-t}h-${2*t}v-${r-t}h-${r-t}v-${2*t}h${r-t}z"/>`}
+  if(shape==="heart")return `<path d="M${cx} ${cy+r} C${cx-r*1.6} ${cy-r*.2} ${cx-r*.8} ${cy-r*1.4} ${cx} ${cy-r*.45} C${cx+r*.8} ${cy-r*1.4} ${cx+r*1.6} ${cy-r*.2} ${cx} ${cy+r}Z"/>`;
+  if(shape==="square")return `<rect x="${cx-r*.85}" y="${cy-r*.85}" width="${r*1.7}" height="${r*1.7}" rx="2"/>`;
+  if(shape==="diamond")return `<polygon points="${cx},${cy-r*1.1} ${cx+r*.8},${cy} ${cx},${cy+r*1.1} ${cx-r*.8},${cy}"/>`;
   let p="";for(let i=0;i<10;i++){const a=Math.PI/5*i-Math.PI/2,rr=i%2?r*.45:r*1.05;p+=`${(cx+rr*Math.cos(a)).toFixed(1)},${(cy+rr*Math.sin(a)).toFixed(1)} `}
   return `<polygon points="${p}"/>`;
 }
@@ -357,11 +373,11 @@ function practiceIntro(){
   const again=session.practiceRounds[task]>0, name=esc(session.first);
   const text=task==="fl"
     ?`Hi, ${name}! You will see five arrows in a row. Look only at the arrow in the middle. If the middle arrow points to the left, tap the left button. If it points to the right, tap the right button. Don't pay attention to the other arrows. Go as fast as you can, but try not to make mistakes.`
-    :`${step>0?"Now we will play a card game.":`Hi, ${name}! This is a card game.`} At the top there are four cards. At the bottom you will get a new card. Tap the card at the top that you think goes with the new card. After you tap, you will hear if you are right or wrong. Let's try a few.`;
+    :`${step>0?"Now we will play a card game.":`Hi, ${name}! This is a card game.`} Cards can match in different ways. They can match by color, like these two purple cards. They can match by shape, like these two cards with diamonds. Or they can match by number, like these two cards that each have two shapes. In the game, there are four cards at the top. You will get a new card at the bottom. Tap the card at the top that you think goes with the new card. After you tap, you will hear if you are right or wrong. Let's try a few.`;
   scr.innerHTML=`<section class="card">
     <h2>${again?"Let's practice again!":"Let's practice!"}</h2>
     ${dirBlock(text)}
-    ${task==="fl"?flDemo():csDemo()}
+    ${task==="fl"?flDemo():csRules(false)+`<p class="rulesHead">These are the four cards at the top of the game:</p>`+csDemo()}
     <div class="actions"><button class="btn go" id="go">Start practice</button></div>
   </section>`;
   wireScript();
@@ -371,11 +387,11 @@ function testIntro(){
   phase="intro";hideStages();tag.hidden=false;tag.textContent="Test";tag.className="tag";
   const text=task==="fl"
     ?`Now let's do the real game. This time I won't tell you if you are right or wrong. Remember, look only at the middle arrow. Go as fast as you can without making mistakes. Ready?`
-    :`Now let's play the real game. I can't tell you how to match the cards, but after each card you will hear if you are right or wrong. Use that to figure out the way to match. Sometimes the way to match will change. When that happens, find the new way to match. Try to be right as many times as you can.`;
+    :`This test is unusual because I am not allowed to tell you how to match the cards. You must figure it out yourself. Each time you match a card, I will tell you whether you are right or wrong. You can match by color, shape, or number. If you are wrong, simply try another way with the next card. There is no time limit.`;
   scr.innerHTML=`<section class="card">
     <h2>${task==="fl"?"Great practicing!":"Now the real game"}</h2>
     ${dirBlock(text)}
-    ${task==="fl"?flDemo():csDemo()}
+    ${task==="fl"?flDemo():csRules(true)}
     <div class="actions"><button class="btn primary" id="go">Start test</button></div>
   </section>`;
   wireScript();
@@ -486,6 +502,21 @@ document.addEventListener("keydown",e=>{
 function flEnd(){hideStages();if(phase==="practice")practiceResult();else endTask("completed")}
 
 /* ================= CARD SORT TRIALS ================= */
+/* Examples use shapes and colors that are NOT in the game, so they teach the idea without showing real answers. */
+const RULE_EXAMPLES=[
+  {rule:"Color",text:"Both are purple",a:["heart",1,"purple"],b:["square",3,"purple"]},
+  {rule:"Shape",text:"Both are diamonds",a:["diamond",2,"orange"],b:["diamond",4,"purple"]},
+  {rule:"Number",text:"Both have 2",a:["heart",2,"orange"],b:["square",2,"purple"]}
+];
+function csRules(compact){
+  return `<div class="rules${compact?" compact":""}">
+    ${compact?"":`<p class="rulesHead">Cards can match in different ways:</p>`}
+    <div class="ruleGrid">${RULE_EXAMPLES.map(x=>`<div class="ruleBox">
+        <b>Same ${x.rule.toLowerCase()}</b>
+        <div class="pair">${cardSVG(...x.a)}<span>=</span>${cardSVG(...x.b)}</div>
+        <small>${x.text}</small></div>`).join("")}</div>
+  </div>`;
+}
 function csDemo(){return `<div class="demoCards">${KEYS.map(k=>cardSVG(...k)).join("")}</div>`}
 function csKeys(en){KEYS.forEach((_,i)=>$("#k"+(i+1)).disabled=!en)}
 function csRun(which){
@@ -509,7 +540,7 @@ function csNext(){
     $("#prompt").textContent=phase==="practice"?"Tap the card at the top that goes with this card.":"";
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       tOn=performance.now();live=true;csKeys(true);
-      timer=setTimeout(()=>csChoose(0),CS.timeLimit);
+      timer=setTimeout(()=>{if(live&&task==="cs"){$("#prompt").innerHTML=`<span class="slowNote">Too slow! Choose a card.</span>`}},CS.slowAfter);
     }));
   },idx===0?300:CS.beforeCard);
 }
@@ -517,11 +548,11 @@ function csChoose(k){
   if(!live||task!=="cs")return;
   live=false;clearTimeout(timer);csKeys(false);
   const c=list[idx], rt=k?Math.round(performance.now()-tOn):"";
-  const correct=k===c[4]?1:0, persev=(!correct&&k&&c[5]&&k===c[5])?1:0, nonpersev=(!correct&&!persev)?1:0;
+  const correct=k===c[4]?1:0, persev=(!correct&&k&&c[5]&&k===c[5])?1:0, nonpersev=(!correct&&!persev)?1:0, slow=rt>CS.slowAfter?1:0;
   session.trials.push({task:"cs",phase,round:phase==="practice"?session.practiceRounds.cs:"",trial:idx+1,
     set:phase==="test"?Math.floor(idx/10)+1:"",trialInSet:phase==="test"?idx%10+1:"",rule:c[3],card:cardName(c),
-    correctChoice:c[4],persevChoice:c[5]||"",choice:k||"none",correct,error:correct?0:1,persev,nonpersev,rt,timeout:k?0:1});
-  $("#pile").innerHTML="";
+    correctChoice:c[4],persevChoice:c[5]||"",choice:k||"none",correct,error:correct?0:1,persev,nonpersev,rt,timeout:slow});
+  $("#pile").innerHTML="";$("#prompt").textContent="";
   if(k)$("#d"+k).innerHTML=`${cardSVG(c[0],c[1],c[2])}<div class="mark ${correct?"ok":"bad"}">${correct?"✓ Correct":"✗ Wrong"}</div>`;
   else $("#pile").innerHTML=`<span class="slow">Too slow!</span>`;
   tone(correct?"good":"bad");
@@ -561,6 +592,7 @@ function finish(){
     <tr><td><strong>Total errors</strong></td><td><strong>${C.errors}</strong></td><td><strong>${C.pctErrors}%</strong></td></tr>
     <tr><td><strong>Perseverative errors</strong></td><td><strong>${C.pers}</strong></td><td><strong>${C.pctPers}%</strong></td></tr>
     <tr><td>Non-perseverative errors</td><td>${C.nonpers}</td><td>${C.pctNonPers}%</td></tr>
+    <tr><td>Took over 10 seconds</td><td>${C.timeouts}</td><td></td></tr>
     <tr><td>Correct by set</td><td colspan="2">${C.sets.map((x,i)=>x.n?`${i+1} (${x.rule}) ${x.correct}/${x.n}`:"").filter(Boolean).join(" · ")}</td></tr>`;
   scr.innerHTML=`<section class="card">
     <h2 class="center">All done. Great job, ${esc(session.first)}!</h2>
